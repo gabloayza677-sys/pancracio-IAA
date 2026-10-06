@@ -1,8 +1,0 @@
-streamlit
-groq
-langchain
-langchain-community
-langchain-groq
-langgraph
-duckduckgo-search
-ddgs
