@@ -103,9 +103,9 @@ if prompt := st.chat_input("Escribe tu mensaje para Pancracio..."):
         api_messages = [{"role": m["role"], "content": m["content"]} for m in current_messages]
         
         try:
-            # Modelo Mixtral de Mistral AI
+            # Modelo de producción activamente soportado en Groq
             response = client.chat.completions.create(
-                model="mixtral-8x7b-32768",
+                model="openai/gpt-oss-20b",
                 messages=api_messages,
                 stream=True,
             )
