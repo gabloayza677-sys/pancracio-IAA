@@ -13,10 +13,9 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------------
-# ESTILOS CSS PERSONALIZADOS (Material Icons + Animaciones Neón Rojo)
+# ESTILOS CSS PERSONALIZADOS
 # -------------------------------------------------------------------
 st.markdown("""
-<!-- Cargar librería de Material Symbols (Íconos oficiales estilo Gemini) -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
 <style>
@@ -77,7 +76,6 @@ st.markdown("""
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* EFECTO HOVER ESTILO GEMINI NEÓN ROJO */
     section[data-testid="stSidebar"] .stButton > button:hover {
         background-color: rgba(255, 42, 95, 0.2) !important;
         color: #ffffff !important;
@@ -158,13 +156,11 @@ if "temperature" not in st.session_state:
     st.session_state.temperature = 0.7
 
 # -------------------------------------------------------------------
-# BARRA LATERAL CON ÍCONOS ESTILIZADOS Y FUNCIONALES
+# BARRA LATERAL CON ÍCONOS ESTILIZADOS
 # -------------------------------------------------------------------
 with st.sidebar:
-    # Logo animado central
     st.markdown('<div style="text-align:center;"><span class="sparkle-icon">✦</span></div>', unsafe_allow_html=True)
 
-    # 1. FUNCIÓN: Crear Nuevo Chat
     if st.button("✏️", help="Nuevo Chat"):
         num = len(st.session_state.chats) + 1
         name = f"Chat {num}"
@@ -173,39 +169,31 @@ with st.sidebar:
         st.session_state.show_history = False
         st.rerun()
 
-    # 2. FUNCIÓN: Mostrar/Ocultar Historial de Conversaciones
     if st.button("🔍", help="Historial y Búsqueda"):
         st.session_state.show_history = not st.session_state.show_history
         st.rerun()
 
-    # 3. FUNCIÓN: Activar/Desactivar Modo Educación (Tutor)
     edu_icon = "🎓" if not st.session_state.edu_mode else "💡"
     if st.button(edu_icon, help="Modo Tutor / Educación Paso a Paso"):
         st.session_state.edu_mode = not st.session_state.edu_mode
         status = "Activado" if st.session_state.edu_mode else "Desactivado"
         st.toast(f"Modo Tutor {status}")
 
-    # 4. FUNCIÓN: Panel de Adjuntar Archivos
     if st.button("📎", help="Adjuntar Documentos"):
         st.session_state.show_file_upload = not st.session_state.show_file_upload
         st.rerun()
 
-    # Espacio flexible vertical
     st.markdown("<div style='margin-top: 20vh;'></div>", unsafe_allow_html=True)
 
-    # 5. FUNCIÓN: Abrir Ajustes de Configuración
     if st.button("⚙️", help="Configuración del Modelo"):
         st.session_state.show_settings = not st.session_state.show_settings
         st.rerun()
 
-    # 6. Avatar / Usuario
     st.markdown('<div style="text-align: center; font-size: 1.5rem; margin-top: 0.5rem;" title="Usuario Activo">🤖</div>', unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
-# PANELES DESPLEGABLES SEGÚN EL ÍCONO SELECCIONADO
+# PANELES DESPLEGABLES
 # -------------------------------------------------------------------
-
-# Panel desplegable 1: Historial de Chats (Activado con 🔍)
 if st.session_state.show_history:
     with st.expander("📚 **Historial de Conversaciones**", expanded=True):
         chat_list = list(st.session_state.chats.keys())
@@ -218,7 +206,6 @@ if st.session_state.show_history:
             st.session_state.active_chat = selected
             st.rerun()
 
-# Panel desplegable 2: Adjuntar Archivos (Activado con 📎)
 file_content = ""
 if st.session_state.show_file_upload:
     with st.expander("📁 **Cargar Archivo de Texto o Código**", expanded=True):
@@ -230,7 +217,6 @@ if st.session_state.show_file_upload:
             except Exception:
                 st.error("Error al leer el archivo.")
 
-# Panel desplegable 3: Ajustes (Activado con ⚙️)
 if st.session_state.show_settings:
     with st.expander("⚙️ **Configuración Avanzada**", expanded=True):
         st.session_state.temperature = st.slider(
@@ -246,7 +232,6 @@ if st.session_state.show_settings:
 # -------------------------------------------------------------------
 current_messages = st.session_state.chats[st.session_state.active_chat]
 
-# Indicador si el Modo Educación está activo
 if st.session_state.edu_mode:
     st.info("🎓 **Modo Tutor Activo:** Pancracio explicará con ejemplos detallados y didácticos.")
 
@@ -263,13 +248,13 @@ with col_center:
         label_visibility="collapsed" if len(current_messages) > 0 else "visible"
     )
 
-# Renderizar mensajes anteriores
+# Renderizar mensajes guardados previamente
 for message in current_messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # -------------------------------------------------------------------
-# ENTRADA Y GENERACIÓN DE RESPUESTAS
+# ENTRADA Y GENERACIÓN DE RESPUESTAS (CORREGIDO SIN RERUN)
 # -------------------------------------------------------------------
 if prompt := st.chat_input("Preguntarle a Pancracio..."):
     
@@ -277,19 +262,18 @@ if prompt := st.chat_input("Preguntarle a Pancracio..."):
     if file_content:
         full_prompt += f"\n\n[Contenido adjunto]:\n{file_content}"
 
+    # 1. Agregar mensaje del usuario a la sesión
     user_msg = {"role": "user", "content": full_prompt}
     current_messages.append(user_msg)
 
-    if len(current_messages) == 1:
-        st.rerun()
-
+    # 2. Renderizar mensaje del usuario en pantalla inmediatamente
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    # 3. Generar y transmitir la respuesta del asistente
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         
-        # Inyectar instrucción del Modo Tutor si está activado
         system_instruction = []
         if st.session_state.edu_mode:
             system_instruction.append({
