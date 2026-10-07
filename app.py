@@ -1,4 +1,3 @@
-import base64
 import os
 import streamlit as st
 from groq import Groq
@@ -19,10 +18,6 @@ if not groq_api_key:
 
 # Inicializar cliente de Groq
 client = Groq(api_key=groq_api_key)
-
-# Función para codificar imágenes a Base64
-def encode_image(image_file):
-    return base64.b64encode(image_file.getvalue()).decode('utf-8')
 
 # -------------------------------------------------------------------
 # GESTIÓN DE ESTADO (Múltiples chats)
@@ -58,14 +53,19 @@ with st.sidebar:
     st.session_state.active_chat = selected_chat
 
     st.markdown("---")
-    st.subheader("📁 Subir Archivo / Imagen")
+    st.subheader("📁 Subir Archivo Texto / Código")
     uploaded_file = st.file_uploader(
-        "Adjunta una imagen o documento",
-        type=["png", "jpg", "jpeg", "txt"]
+        "Adjunta un archivo de texto o código (ej: .txt, .py)",
+        type=["txt", "py", "md"]
     )
     
+    file_text_content = ""
     if uploaded_file:
-        st.success(f"Archivo cargado: {uploaded_file.name}")
+        try:
+            file_text_content = uploaded_file.getvalue().decode("utf-8")
+            st.success(f"Archivo cargado: {uploaded_file.name}")
+        except Exception as e:
+            st.error("Error al leer el archivo de texto.")
 
 # -------------------------------------------------------------------
 # ÁREA PRINCIPAL DEL CHAT
@@ -77,57 +77,33 @@ current_messages = st.session_state.chats[st.session_state.active_chat]
 # Mostrar historial de mensajes
 for message in current_messages:
     with st.chat_message(message["role"]):
-        if isinstance(message["content"], str):
-            st.markdown(message["content"])
-        elif isinstance(message["content"], list):
-            for item in message["content"]:
-                if item.get("type") == "text":
-                    st.markdown(item["text"])
-                elif item.get("type") == "image_url":
-                    st.image(item["image_url"]["url"], caption="Imagen analizada", width=300)
+        st.markdown(message["content"])
 
 # Entrada del usuario
 if prompt := st.chat_input("Escribe tu mensaje para Pancracio..."):
     
-    # Preparar el contenido del mensaje
-    user_content = []
-    
-    if uploaded_file and uploaded_file.type.startswith("image"):
-        base64_image = encode_image(uploaded_file)
-        mime_type = uploaded_file.type
-        image_url = f"data:{mime_type};base64,{base64_image}"
-        
-        user_content.append({
-            "type": "image_url",
-            "image_url": {"url": image_url}
-        })
-        # Seleccionar modelo con capacidad de visión
-        model_to_use = "llama-3.2-11b-vision-preview"
-    else:
-        # Modelo estándar para texto puro
-        model_to_use = "llama-3.1-8b-instant"
+    # Si hay contenido de un archivo de texto, lo adjuntamos al mensaje
+    full_prompt = prompt
+    if file_text_content:
+        full_prompt += f"\n\n[Contenido del archivo adjunto ({uploaded_file.name})]:\n{file_text_content}"
 
-    user_content.append({"type": "text", "text": prompt})
-
-    user_msg = {"role": "user", "content": user_content}
+    user_msg = {"role": "user", "content": full_prompt}
     current_messages.append(user_msg)
     
     with st.chat_message("user"):
-        if uploaded_file and uploaded_file.type.startswith("image"):
-            st.image(uploaded_file, width=300)
         st.markdown(prompt)
+        if file_text_content:
+            st.info(f"📄 Archivo adjunto incluido: {uploaded_file.name}")
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         
-        # Preparar historial limpio para la API
-        api_messages = []
-        for m in current_messages:
-            api_messages.append({"role": m["role"], "content": m["content"]})
+        # Preparar historial simple para openai/gpt-oss-20b
+        api_messages = [{"role": m["role"], "content": m["content"]} for m in current_messages]
         
         try:
             response = client.chat.completions.create(
-                model=model_to_use,
+                model="openai/gpt-oss-20b",
                 messages=api_messages,
                 stream=True,
             )
