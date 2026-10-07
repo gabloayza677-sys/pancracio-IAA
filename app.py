@@ -103,9 +103,9 @@ if prompt := st.chat_input("Escribe tu mensaje para Pancracio..."):
         api_messages = [{"role": m["role"], "content": m["content"]} for m in current_messages]
         
         try:
-            # Se utiliza llama3-70b-8192 para evitar el error 404
+            # Modelo Mixtral de Mistral AI
             response = client.chat.completions.create(
-                model="llama3-70b-8192",
+                model="mixtral-8x7b-32768",
                 messages=api_messages,
                 stream=True,
             )
