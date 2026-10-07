@@ -13,46 +13,37 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------------
-# ESTILOS CSS PERSONALIZADOS (Inspirados en la interfaz de Gemini)
+# ESTILOS CSS PERSONALIZADOS
 # -------------------------------------------------------------------
 st.markdown("""
 <style>
-    /* Fondo oscuro con resplandor central azul/rojo */
+    /* Fondo oscuro con degradado radial */
     .stApp {
         background: radial-gradient(circle at 50% 45%, #18101a 0%, #0d0e12 60%, #050507 100%);
         color: #e2e8f0;
     }
 
-    /* Ocultar elementos predeterminados innecesarios */
+    /* Ocultar encabezados por defecto */
     #MainMenu, header, footer {visibility: hidden;}
-
-    /* Contenedor central principal */
-    .main-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        margin-top: 5vh;
-        margin-bottom: 2rem;
-    }
 
     /* Título estilo Gemini */
     .gemini-title {
         font-size: 2.8rem;
-        font-weight: 500;
+        font-weight: 600;
         color: #f1f5f9;
         text-align: center;
-        margin-bottom: 2rem;
+        margin-top: 10vh;
+        margin-bottom: 1rem;
         letter-spacing: -0.5px;
     }
 
-    /* Barra lateral estilo Glassmorphism */
+    /* Barra lateral */
     section[data-testid="stSidebar"] {
-        background-color: rgba(13, 14, 18, 0.9) !important;
+        background-color: rgba(13, 14, 18, 0.95) !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    /* Botón flotante para cambiar de chat */
+    /* Botones */
     .stButton > button {
         background: linear-gradient(90deg, #e11d48 0%, #be123c 100%);
         color: #ffffff;
@@ -67,44 +58,40 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4);
     }
 
-    /* Estilo para las tarjetas de chat */
+    /* Contenedor de mensajes */
     .stChatMessage {
         border-radius: 18px;
         padding: 1rem 1.2rem;
         margin-bottom: 1rem;
     }
 
-    /* Mensaje del usuario */
     div[data-testid="stChatMessage"]:nth-child(even) {
         background-color: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* Mensaje de la IA */
     div[data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: rgba(225, 29, 72, 0.06);
+        background-color: rgba(225, 29, 72, 0.08);
         border: 1px solid rgba(225, 29, 72, 0.2);
     }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------------
-# CLIENTE DE GROQ
+# CONEXIÓN CON GROQ
 # -------------------------------------------------------------------
 groq_api_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
 
 if not groq_api_key:
-    st.error("⚠️ No se encontró la variable GROQ_API_KEY en los Secrets.")
+    st.error("⚠️ No se encontró la variable GROQ_API_KEY en los Secrets de Streamlit.")
     st.stop()
 
 client = Groq(api_key=groq_api_key)
 
-# -------------------------------------------------------------------
-# DICCIONARIO DE MODELOS CON NOMBRES LLAMATIVOS
-# -------------------------------------------------------------------
+# Modelos disponibles
 MODELOS_DISPONIBLES = {
     "⚡ Pancracio Flash (Ultra Rápido)": "openai/gpt-oss-20b",
-    "🧠 Pancracio Pro (Razonamiento Complejo)": "openai/gpt-oss-20b",
+    "🧠 Pancracio Pro (Razonamiento)": "openai/gpt-oss-20b",
     "🎨 Pancracio Creativo (Textos e Ideas)": "openai/gpt-oss-20b"
 }
 
@@ -118,11 +105,11 @@ if "active_chat" not in st.session_state:
     st.session_state.active_chat = "Nuevo Chat"
 
 # -------------------------------------------------------------------
-# BARRA LATERAL (Menú de salas y archivos)
+# BARRA LATERAL
 # -------------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 🤖 **Pancracio Studio**")
-    st.caption("Interfaz Minimalista")
+    st.caption("Modo Minimalista")
     st.markdown("---")
     
     if st.button("➕ Nuevo Chat", use_container_width=True):
@@ -143,7 +130,7 @@ with st.sidebar:
     st.session_state.active_chat = selected_chat
 
     st.markdown("---")
-    st.markdown("#### 📁 Adjuntar Texto/Código")
+    st.markdown("#### 📁 Adjuntar Archivo")
     uploaded_file = st.file_uploader(
         "Cargar archivo (.txt, .py, .md)",
         type=["txt", "py", "md"],
@@ -157,3 +144,73 @@ with st.sidebar:
             st.success(f"📎 {uploaded_file.name} cargado")
         except Exception:
             st.error("Error al leer el archivo.")
+
+# -------------------------------------------------------------------
+# VISTA PRINCIPAL
+# -------------------------------------------------------------------
+current_messages = st.session_state.chats[st.session_state.active_chat]
+
+# Contenedor para el selector de modelo
+col_left, col_center, col_right = st.columns([1, 2, 1])
+
+with col_center:
+    if len(current_messages) == 0:
+        st.markdown('<h1 class="gemini-title">¿Por dónde empezamos?</h1>', unsafe_allow_html=True)
+    
+    modelo_seleccionado = st.selectbox(
+        "Modalidad de Pancracio:",
+        options=list(MODELOS_DISPONIBLES.keys()),
+        index=0,
+        label_visibility="collapsed" if len(current_messages) > 0 else "visible"
+    )
+
+# Mostrar mensajes anteriores si existen
+for message in current_messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# -------------------------------------------------------------------
+# CAMPO DE ENTRADA (Siempre visible)
+# -------------------------------------------------------------------
+if prompt := st.chat_input("Preguntarle a Pancracio..."):
+    
+    full_prompt = prompt
+    if file_text:
+        full_prompt += f"\n\n[Contenido de {uploaded_file.name}]:\n{file_text}"
+
+    user_msg = {"role": "user", "content": full_prompt}
+    current_messages.append(user_msg)
+
+    # Si es el primer mensaje, recargar pantalla para ocultar el título central
+    if len(current_messages) == 1:
+        st.rerun()
+
+    with st.chat_message("user"):
+        st.markdown(prompt)
+        if file_text:
+            st.info(f"📄 Documento adjunto: {uploaded_file.name}")
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        
+        api_messages = [{"role": m["role"], "content": m["content"]} for m in current_messages]
+        model_code = MODELOS_DISPONIBLES[modelo_seleccionado]
+        
+        try:
+            response = client.chat.completions.create(
+                model=model_code,
+                messages=api_messages,
+                stream=True,
+            )
+            
+            full_response = ""
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+                    message_placeholder.markdown(full_response + "▌")
+            
+            message_placeholder.markdown(full_response)
+            current_messages.append({"role": "assistant", "content": full_response})
+            
+        except Exception as e:
+            st.error(f"Error al generar respuesta: {e}")
